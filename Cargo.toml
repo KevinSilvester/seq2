@@ -1,0 +1,19 @@
+[package]
+name = "seq2"
+version = "0.0.0"
+edition = "2021"
+description = "A library/program to parse and transform a string of comma separated number to a vector of the said numbers."
+authors = ["Kevin Silvester"]
+repository = "https://KevinSilvester/seq2"
+homepage = "https://KevinSilvester/seq2"
+license = "MIT"
+
+[dependencies]
+anyhow = "1.0.80"
+thiserror = "1.0.57"
+
+[profile.release]
+strip = true
+codegen-units = 1
+opt-level = 3
+lto = "thin"
