@@ -54,7 +54,6 @@ impl fmt::Display for TokenKind {
             TokenKind::RngStep      => write!(f, "s:"),
             TokenKind::RngMutation  => write!(f, "m:"),
             TokenKind::RngMutArg    => write!(f, "@"),
-                    
         }
     }
 }
