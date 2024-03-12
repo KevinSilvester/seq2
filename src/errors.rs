@@ -1,9 +1,13 @@
 use std::fmt;
 
-use anstyle::{Effects, RgbColor};
+use anstyle::{Color, Effects, RgbColor};
 use indoc::formatdoc;
 
 use crate::tokens::Span;
+
+const RED: RgbColor = RgbColor(235, 66, 66);
+const WHITE: RgbColor = RgbColor(255, 255, 255);
+const TURQUIOUSE: RgbColor = RgbColor(64, 224, 208);
 
 trait FancyError {
     fn error_ctx(&self) -> (&Vec<char>, Span);
@@ -12,8 +16,9 @@ trait FancyError {
     fn construct_error(&self) -> String {
         let (input, span) = self.error_ctx();
         let msg = self.error_msg();
-        let red = RgbColor(235, 66, 66).on_default() | Effects::BOLD;
-        let turquiouse = RgbColor(64, 224, 208).on_default() | Effects::BOLD;
+        let red = RED.on_default() | Effects::BOLD;
+        let white_on_red = WHITE.on(Color::from(RED)) | Effects::BOLD;
+        let turquiouse = TURQUIOUSE.on_default() | Effects::BOLD;
 
         let before_err: String = input[0..(span.start - 1)].iter().collect();
         let after_err: String = input[span.end..].iter().collect();
@@ -22,7 +27,7 @@ trait FancyError {
         let error_msg = formatdoc! {"
             --> {red}ERROR{red:#}: {msg}
             |
-            | {before_err}{red}{err}{red:#}{after_err}
+            | {before_err}{white_on_red}{err}{white_on_red:#}{after_err}
             |
             | = {turquiouse}HINT{turquiouse:#}: touch grass ;)
         "};
