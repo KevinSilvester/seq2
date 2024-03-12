@@ -94,5 +94,8 @@
 
 pub mod errors;
 pub mod lexer;
-pub(crate) mod parser;
-pub(crate) mod tokens;
+mod parser;
+mod tokens;
+
+#[cfg(test)]
+mod tests;

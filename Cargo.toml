@@ -9,7 +9,9 @@ homepage = "https://KevinSilvester/seq2"
 license = "MIT"
 
 [dependencies]
+anstyle = "1.0.6"
 anyhow = "1.0.80"
+indoc = "2.0.4"
 thiserror = "1.0.57"
 
 [dev-dependencies]

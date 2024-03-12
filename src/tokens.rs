@@ -2,53 +2,89 @@ use std::fmt;
 
 #[derive(Debug, PartialEq)]
 #[rustfmt::skip]
-pub enum Token {
+pub enum TokenKind {
     // Misc
-    Space { pos: u16 },
-    Comma { pos: u16 },
+    Space,
+    Comma,
 
     // Numbers
-    Int { start_pos: u16, end_pos: u16, str_val: String, val: u32 },
+    Int { str_val: String, val: u32 },
 
     // Math operations
-    MathAdd { pos: u16 }, // +
-    MathSub { pos: u16 }, // -
-    MathMul { pos: u16 }, // *
-    MathDiv { pos: u16 }, // /
-    MathPow { pos: u16 }, // ^
+    MathAdd, // +
+    MathSub, // -
+    MathMul, // *
+    MathDiv, // /
+    MathPow, // ^
+    MathMod, // %
 
     // Parentheses
-    LParen    { pos: u16 }, // (
-    RParen    { pos: u16 }, // )
-    LSquiggly { pos: u16 }, // {
-    RSquiggly { pos: u16 }, // }
+    LParen,    // (
+    RParen,    // )
+    LSquiggly, // {
+    RSquiggly, // }
 
     // Range
-    RngInclusive { start_pos: u16, end_pos: u16 }, // ..=
-    RngExclusive { start_pos: u16, end_pos: u16 }, // ..
-    RngStep      { start_pos: u16, end_pos: u16 }, // s:
-    RngMutation  { start_pos: u16, end_pos: u16 }, // m:
+    RngInclusive, // ..=
+    RngExclusive, // ..
+    RngStep,      // s:
+    RngMutation,  // m:
+    RngMutArg,    // @
+}
+
+impl fmt::Display for TokenKind {
+    #[rustfmt::skip]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TokenKind::Int { str_val, .. } => write!(f, "{str_val}"),
+            TokenKind::Space        => write!(f, " "),
+            TokenKind::Comma        => write!(f, ","),
+            TokenKind::MathAdd      => write!(f, "+"),
+            TokenKind::MathSub      => write!(f, "-"),
+            TokenKind::MathMul      => write!(f, "*"),
+            TokenKind::MathDiv      => write!(f, "/"),
+            TokenKind::MathPow      => write!(f, "^"),
+            TokenKind::MathMod      => write!(f, "%"),
+            TokenKind::LParen       => write!(f, "("),
+            TokenKind::RParen       => write!(f, ")"),
+            TokenKind::LSquiggly    => write!(f, "{{"),
+            TokenKind::RSquiggly    => write!(f, "}}"),
+            TokenKind::RngInclusive => write!(f, "..="),
+            TokenKind::RngExclusive => write!(f, ".."),
+            TokenKind::RngStep      => write!(f, "s:"),
+            TokenKind::RngMutation  => write!(f, "m:"),
+            TokenKind::RngMutArg    => write!(f, "@"),
+                    
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Token {
+    pub kind: TokenKind,
+    pub span: Span,
+}
+
+impl Token {
+    pub fn new(kind: TokenKind, span: Span) -> Self {
+        Self { kind, span }
+    }
 }
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Token::Space { .. } => write!(f, " "),
-            Token::Comma { .. } => write!(f, ","),
-            Token::Int { str_val, .. } => write!(f, "{str_val}"),
-            Token::MathAdd { .. } => write!(f, "+"),
-            Token::MathSub { .. } => write!(f, "-"),
-            Token::MathMul { .. } => write!(f, "*"),
-            Token::MathDiv { .. } => write!(f, "/"),
-            Token::MathPow { .. } => write!(f, "^"),
-            Token::LParen { .. } => write!(f, "("),
-            Token::RParen { .. } => write!(f, ")"),
-            Token::LSquiggly { .. } => write!(f, "{{"),
-            Token::RSquiggly { .. } => write!(f, "}}"),
-            Token::RngInclusive { .. } => write!(f, "..="),
-            Token::RngExclusive { .. } => write!(f, ".."),
-            Token::RngStep { .. } => write!(f, "s:"),
-            Token::RngMutation { .. } => write!(f, "m:"),
-        }
+        write!(f, "{}", self.kind)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Span {
+    pub start: usize,
+    pub end: usize,
+}
+
+impl Span {
+    pub fn new(start: usize, end: usize) -> Self {
+        Self { start, end }
     }
 }
