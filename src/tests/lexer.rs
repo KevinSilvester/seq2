@@ -219,3 +219,24 @@ fn test_invalid_range_arg() {
         panic!("Expected MissingColon error");
     }
 }
+
+#[test]
+fn test_invalid_range_syntax() {
+    let mut lexer = Lexer::new("s:1");
+    let tokens = lexer.lex();
+    if let Err(LexicalError::MisplacedRngSyntax(_, span)) = tokens {
+        println!("{}", tokens.err().unwrap());
+        assert_eq!(span, Span { start: 1, end: 1 });
+    } else {
+        panic!("Expected MisplacedRngSyntax error");
+    }
+
+    let mut lexer = Lexer::new("1, 3, 2__000, @");
+    let tokens = lexer.lex();
+    if let Err(LexicalError::MisplacedRngSyntax(_, span)) = tokens {
+        println!("{}", tokens.err().unwrap());
+        assert_eq!(span, Span { start: 15, end: 15 });
+    } else {
+        panic!("Expected MisplacedRngSyntax error");
+    }
+}

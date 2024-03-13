@@ -5,7 +5,7 @@ use crate::{
     tokens::{Span, Token, TokenKind},
 };
 
-// type LexResult = Result<Vec<Token>, LexicalError>;
+type LexResult = Result<Vec<Token>, LexicalError>;
 type TokenResult = Result<Token, LexicalError>;
 
 #[derive(Debug)]
@@ -14,6 +14,7 @@ pub struct Lexer<'a> {
     input: Peekable<Chars<'a>>,
     position: usize,
     ch: char,
+    in_squiggly: bool,
 }
 
 impl<'a> Lexer<'a> {
@@ -23,6 +24,7 @@ impl<'a> Lexer<'a> {
             input: input.chars().peekable(),
             position: 1,
             ch: '\0',
+            in_squiggly: false,
         }
     }
 
@@ -31,7 +33,7 @@ impl<'a> Lexer<'a> {
         self.position += 1;
     }
 
-    pub fn lex(&mut self) -> Result<Vec<Token>, LexicalError> {
+    pub fn lex(&mut self) -> LexResult {
         let mut tokens = vec![];
 
         while let Some(ch) = self.input.peek() {
@@ -53,6 +55,12 @@ impl<'a> Lexer<'a> {
                     self.next_char();
                 }
                 '@' => {
+                    if !self.in_squiggly {
+                        return Err(LexicalError::MisplacedRngSyntax(
+                            self.input_chars.clone(),
+                            Span::new(self.position, self.position),
+                        ));
+                    }
                     tokens.push(Token::new(
                         TokenKind::RngMutArg,
                         Span::new(self.position, self.position),
@@ -100,6 +108,11 @@ impl<'a> Lexer<'a> {
             '}' => TokenKind::RSquiggly,
             _ => unreachable!(),
         };
+        if kind == TokenKind::LSquiggly {
+            self.in_squiggly = true;
+        } else if kind == TokenKind::RSquiggly {
+            self.in_squiggly = false;
+        }
         self.next_char();
         Token::new(kind, Span::new(current_pos, current_pos))
     }
@@ -167,6 +180,13 @@ impl<'a> Lexer<'a> {
     fn tokenize_range_arg(&mut self) -> TokenResult {
         let start_pos = self.position;
         self.next_char();
+
+        if !self.in_squiggly {
+            return Err(LexicalError::MisplacedRngSyntax(
+                self.input_chars.clone(),
+                Span::new(start_pos, self.position - 1),
+            ));
+        }
 
         if let Some(':') = self.input.peek() {
             let kind = match self.ch {

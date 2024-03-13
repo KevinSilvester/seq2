@@ -7,7 +7,8 @@ use crate::tokens::Span;
 
 const RED: RgbColor = RgbColor(235, 66, 66);
 const WHITE: RgbColor = RgbColor(255, 255, 255);
-const TURQUIOUSE: RgbColor = RgbColor(64, 224, 208);
+const CYAN: RgbColor = RgbColor(64, 224, 208);
+const BLUE: RgbColor = RgbColor(66, 117, 235);
 
 trait FancyError {
     fn error_ctx(&self) -> (&Vec<char>, Span);
@@ -18,7 +19,7 @@ trait FancyError {
         let msg = self.error_msg();
         let red = RED.on_default() | Effects::BOLD;
         let white_on_red = WHITE.on(Color::from(RED)) | Effects::BOLD;
-        let turquiouse = TURQUIOUSE.on_default() | Effects::BOLD;
+        let cyan = CYAN.on_default() | Effects::BOLD;
 
         let before_err: String = input[0..(span.start - 1)].iter().collect();
         let after_err: String = input[span.end..].iter().collect();
@@ -29,7 +30,7 @@ trait FancyError {
             |
             | {before_err}{white_on_red}{err}{white_on_red:#}{after_err}
             |
-            | = {turquiouse}HINT{turquiouse:#}: touch grass ;)
+            | = {cyan}HINT{cyan:#}: touch grass ;)
         "};
         error_msg
     }
@@ -44,6 +45,7 @@ pub enum LexicalError {
     InvalidRange(Vec<char>, Span),
     UnexpectedEqual(Vec<char>, Span),
     MalformedNumber(Vec<char>, Span),
+    MisplacedRngSyntax(Vec<char>, Span),
 }
 
 impl fmt::Display for LexicalError {
@@ -53,7 +55,8 @@ impl fmt::Display for LexicalError {
             | LexicalError::MissingColon(_, _)
             | LexicalError::UnexpectedEqual(_, _)
             | LexicalError::InvalidRange(_, _)
-            | LexicalError::MalformedNumber(_, _) => write!(f, "{}", self.construct_error()),
+            | LexicalError::MalformedNumber(_, _)
+            | LexicalError::MisplacedRngSyntax(_, _) => write!(f, "{}", self.construct_error()),
         }
     }
 }
@@ -65,35 +68,45 @@ impl FancyError for LexicalError {
             | LexicalError::MissingColon(input, span)
             | LexicalError::UnexpectedEqual(input, span)
             | LexicalError::InvalidRange(input, span)
-            | LexicalError::MalformedNumber(input, span) => (input, *span),
+            | LexicalError::MalformedNumber(input, span)
+            | LexicalError::MisplacedRngSyntax(input, span) => (input, *span),
         }
     }
 
     fn error_msg(&self) -> String {
+        let blue = BLUE.on_default() | Effects::BOLD;
+
         match self {
             LexicalError::InvalidToken(_, span) => {
-                format!("Invalid token at position {}", span.start)
+                format!("{blue}@ position {}{blue:#} - Invalid token", span.start)
             }
             LexicalError::MissingColon(input, span) => {
                 format!(
-                    "Expected a trailing ':' after '{}' at position {}",
+                    "{blue}@ position {}{blue:#} - Expected a trailing ':' after '{}'",
+                    span.start,
                     input[span.start - 1],
-                    span.start
                 )
             }
             LexicalError::UnexpectedEqual(_, span) => {
-                format!("Unexpected '=' at position {}", span.start)
+                format!("{blue}@ position {}{blue:#} - Unexpected '='", span.start)
             }
             LexicalError::InvalidRange(_, span) => {
                 format!(
-                    "Invalid range syntax at position {} - {}",
+                    "{blue}@ position {}-{}{blue:#} - Invalid range syntax",
                     span.start, span.end
                 )
             }
             LexicalError::MalformedNumber(_, span) => {
                 format!(
-                    "Malformed number starting at position {} - {}",
+                    "{blue}@ position {}-{}{blue:#} - Malformed number",
                     span.start, span.end
+                )
+            }
+            LexicalError::MisplacedRngSyntax(input, span) => {
+                format!(
+                    "{blue}@ position {}{blue:#} - Character '{}' can only be used when defining number ranges",
+                span.start,
+                    input[span.start - 1],
                 )
             }
         }
