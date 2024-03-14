@@ -30,6 +30,9 @@ jobs:
     strategy:
       fail-fast: false
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -39,4 +42,3 @@ jobs:
       - name: Run Tests
         shell: bash
         run: cargo test --all
-
