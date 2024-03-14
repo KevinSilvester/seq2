@@ -26,6 +26,9 @@ jobs:
         run: cargo fmt --all -- --check
 
   test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
     steps:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
