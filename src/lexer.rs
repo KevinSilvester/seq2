@@ -2,7 +2,7 @@ use std::{iter::Peekable, str::Chars};
 
 use crate::{
     errors::LexicalError,
-    tokens::{Span, Token, TokenKind},
+    tokens::{Op, Span, Token, TokenKind},
 };
 
 type LexResult = Result<Vec<Token>, LexicalError>;
@@ -10,7 +10,7 @@ type TokenResult = Result<Token, LexicalError>;
 
 #[derive(Debug)]
 pub struct Lexer<'a> {
-    input_chars: Vec<char>,
+    pub input_chars: Vec<char>,
     input: Peekable<Chars<'a>>,
     position: usize,
     ch: char,
@@ -28,7 +28,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn next_char(&mut self) {
+    fn advance(&mut self) {
         self.input.next();
         self.position += 1;
     }
@@ -36,23 +36,28 @@ impl<'a> Lexer<'a> {
     pub fn lex(&mut self) -> LexResult {
         let mut tokens = vec![];
 
+        // tokens.push(Token::new(
+        //     TokenKind::START,
+        //     Span::new(self.position, self.position),
+        // ));
+
         while let Some(ch) = self.input.peek() {
             self.ch = *ch;
 
             match *ch {
                 ' ' => {
-                    tokens.push(Token::new(
-                        TokenKind::Space,
-                        Span::new(self.position, self.position),
-                    ));
-                    self.next_char();
+                    // tokens.push(Token::new(
+                    //     TokenKind::Space,
+                    //     Span::new(self.position, self.position),
+                    // ));
+                    self.advance();
                 }
                 ',' => {
                     tokens.push(Token::new(
                         TokenKind::Comma,
                         Span::new(self.position, self.position),
                     ));
-                    self.next_char();
+                    self.advance();
                 }
                 '@' => {
                     if !self.in_squiggly {
@@ -65,7 +70,7 @@ impl<'a> Lexer<'a> {
                         TokenKind::RngMutArg,
                         Span::new(self.position, self.position),
                     ));
-                    self.next_char();
+                    self.advance();
                 }
                 '0'..='9' => {
                     let number = self.tokenize_numbers()?;
@@ -96,6 +101,11 @@ impl<'a> Lexer<'a> {
             }
         }
 
+        // tokens.push(Token::new(
+        //     TokenKind::END,
+        //     Span::new(self.position, self.position),
+        // ));
+
         Ok(tokens)
     }
 
@@ -113,22 +123,22 @@ impl<'a> Lexer<'a> {
         } else if kind == TokenKind::RSquiggly {
             self.in_squiggly = false;
         }
-        self.next_char();
+        self.advance();
         Token::new(kind, Span::new(current_pos, current_pos))
     }
 
     fn tokenize_operator(&mut self) -> Token {
         let current_pos = self.position;
         let kind = match self.ch {
-            '+' => TokenKind::MathAdd,
-            '-' => TokenKind::MathSub,
-            '*' => TokenKind::MathMul,
-            '/' => TokenKind::MathDiv,
-            '^' => TokenKind::MathPow,
-            '%' => TokenKind::MathMod,
+            '+' => TokenKind::Math(Op::Add),
+            '-' => TokenKind::Math(Op::Sub),
+            '*' => TokenKind::Math(Op::Mul),
+            '/' => TokenKind::Math(Op::Div),
+            '^' => TokenKind::Math(Op::Pow),
+            '%' => TokenKind::Math(Op::Mod),
             _ => unreachable!(),
         };
-        self.next_char();
+        self.advance();
         Token::new(kind, Span::new(current_pos, current_pos))
     }
 
@@ -151,12 +161,12 @@ impl<'a> Lexer<'a> {
                     dot_count += 1;
 
                     prev_ch = *ch;
-                    self.next_char();
+                    self.advance();
                 }
                 '=' => {
                     inclusive = true;
                     prev_ch = *ch;
-                    self.next_char();
+                    self.advance();
                 }
                 _ => {}
             }
@@ -179,7 +189,7 @@ impl<'a> Lexer<'a> {
 
     fn tokenize_range_arg(&mut self) -> TokenResult {
         let start_pos = self.position;
-        self.next_char();
+        self.advance();
 
         if !self.in_squiggly {
             return Err(LexicalError::MisplacedRngSyntax(
@@ -194,7 +204,7 @@ impl<'a> Lexer<'a> {
                 'm' => TokenKind::RngMutation,
                 _ => unreachable!(),
             };
-            self.next_char();
+            self.advance();
             Ok(Token::new(kind, Span::new(start_pos, self.position - 1)))
         } else {
             Err(LexicalError::MissingColon(
@@ -206,20 +216,20 @@ impl<'a> Lexer<'a> {
 
     fn tokenize_numbers(&mut self) -> TokenResult {
         let mut number = String::new();
-        let mut str_val = String::new();
+        // let mut str_val = String::new();
         let start_pos = self.position;
 
         while let Some(ch @ ('0'..='9' | '_')) = self.input.peek() {
             if *ch != '_' {
                 number.push(*ch);
             }
-            str_val.push(*ch);
-            self.next_char();
+            // str_val.push(*ch);
+            self.advance();
         }
 
         match number.parse::<u32>() {
             Ok(val) => Ok(Token::new(
-                TokenKind::Int { val, str_val },
+                TokenKind::Int { val },
                 Span::new(start_pos, self.position - 1),
             )),
             Err(_) => Err(LexicalError::MalformedNumber(

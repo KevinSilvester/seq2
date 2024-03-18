@@ -105,8 +105,71 @@ impl FancyError for LexicalError {
             LexicalError::MisplacedRngSyntax(input, span) => {
                 format!(
                     "{blue}@ position {}{blue:#} - Character '{}' can only be used when defining number ranges",
-                span.start,
+                    span.start,
                     input[span.start - 1],
+                )
+            }
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug)]
+pub enum ParserError {
+    UnexpectedComma(Vec<char>, Span),
+    UnexpectedMathOp(Vec<char>, Span),
+    IncompleteInt(Vec<char>, Span),
+    InvalidInt(Vec<char>, Span),
+}
+
+impl fmt::Display for ParserError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParserError::UnexpectedComma(_, _)
+            | ParserError::UnexpectedMathOp(_, _)
+            | ParserError::InvalidInt(_, _)
+            | ParserError::IncompleteInt(_, _) => {
+                write!(f, "{}", self.construct_error())
+            }
+        }
+    }
+}
+
+impl FancyError for ParserError {
+    fn error_ctx(&self) -> (&Vec<char>, Span) {
+        match self {
+            ParserError::UnexpectedComma(input, span)
+            | ParserError::UnexpectedMathOp(input, span)
+            | ParserError::InvalidInt(input, span)
+            | ParserError::IncompleteInt(input, span) => (input, *span),
+        }
+    }
+    fn error_msg(&self) -> String {
+        let blue = BLUE.on_default() | Effects::BOLD;
+        match self {
+            ParserError::UnexpectedComma(_, span) => {
+                format!("{blue}@ position {}{blue:#} - Unexpected comma", span.start)
+            }
+            ParserError::UnexpectedMathOp(input, span) => {
+                format!(
+                    "{blue}@ position {}{blue:#} - Unexpected math operator '{}'",
+                    span.start,
+                    input[span.start - 1]
+                )
+            }
+            ParserError::IncompleteInt(input, span) => {
+                format!(
+                    "{blue}@ position {}{blue:#} - Expected a number after the math operator '{}'",
+                    span.start,
+                    input[span.start - 1]
+                )
+            }
+            ParserError::InvalidInt(input, span) => {
+                format!(
+                    "{blue}@ position {}{blue:#} - Expected a number, found '{}'",
+                    span.start,
+                    input[span.start - 1]
                 )
             }
         }
