@@ -26,11 +26,11 @@ trait FancyError {
         let err: String = input[(span.start - 1)..span.end].iter().collect();
 
         let error_msg = formatdoc! {"
-            --> {red}ERROR{red:#}: {msg}
-            |
-            | {before_err}{white_on_red}{err}{white_on_red:#}{after_err}
-            |
-            | = {cyan}HINT{cyan:#}: touch grass ;)
+            ╭╴{red}ERROR{red:#}: {msg}
+            │ 
+            │ {before_err}{white_on_red}{err}{white_on_red:#}{after_err}
+            │
+            ╰╴= {cyan}HINT{cyan:#}: touch grass ;)
         "};
         error_msg
     }
@@ -46,6 +46,7 @@ pub enum LexicalError {
     UnexpectedEqual(Vec<char>, Span),
     MalformedNumber(Vec<char>, Span),
     MisplacedRngSyntax(Vec<char>, Span),
+    NumberTooLarge(Vec<char>, Span),
 }
 
 impl fmt::Display for LexicalError {
@@ -56,7 +57,8 @@ impl fmt::Display for LexicalError {
             | LexicalError::UnexpectedEqual(_, _)
             | LexicalError::InvalidRange(_, _)
             | LexicalError::MalformedNumber(_, _)
-            | LexicalError::MisplacedRngSyntax(_, _) => write!(f, "{}", self.construct_error()),
+            | LexicalError::MisplacedRngSyntax(_, _)
+            | LexicalError::NumberTooLarge(_, _) => write!(f, "{}", self.construct_error()),
         }
     }
 }
@@ -69,7 +71,8 @@ impl FancyError for LexicalError {
             | LexicalError::UnexpectedEqual(input, span)
             | LexicalError::InvalidRange(input, span)
             | LexicalError::MalformedNumber(input, span)
-            | LexicalError::MisplacedRngSyntax(input, span) => (input, *span),
+            | LexicalError::MisplacedRngSyntax(input, span)
+            | LexicalError::NumberTooLarge(input, span) => (input, *span),
         }
     }
 
@@ -109,6 +112,12 @@ impl FancyError for LexicalError {
                     input[span.start - 1],
                 )
             }
+            LexicalError::NumberTooLarge(_, span) => {
+                format!(
+                    "{blue}@ position {}-{}{blue:#} - Number too large. Largest possible number is 9_223_372_036_854_775_807",
+                    span.start, span.end
+                )
+            }
         }
     }
 }
@@ -117,19 +126,29 @@ impl FancyError for LexicalError {
 
 #[derive(Debug)]
 pub enum ParserError {
+    EmptyParen(Vec<char>, Span),
+    IncompleteInt(Vec<char>, Span),
+    IncompleteMathExpr(Vec<char>, Span),
+    InvalidInt(Vec<char>, Span),
+    InvalidMathOp(Vec<char>, Span),
+    InvalidMathExpr(Vec<char>, Span),
+    UnmatchedParen(Vec<char>, Span),
     UnexpectedComma(Vec<char>, Span),
     UnexpectedMathOp(Vec<char>, Span),
-    IncompleteInt(Vec<char>, Span),
-    InvalidInt(Vec<char>, Span),
 }
 
 impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ParserError::UnexpectedComma(_, _)
-            | ParserError::UnexpectedMathOp(_, _)
+            ParserError::EmptyParen(_, _)
+            | ParserError::IncompleteInt(_, _)
+            | ParserError::IncompleteMathExpr(_, _)
             | ParserError::InvalidInt(_, _)
-            | ParserError::IncompleteInt(_, _) => {
+            | ParserError::InvalidMathOp(_, _)
+            | ParserError::InvalidMathExpr(_, _)
+            | ParserError::UnmatchedParen(_, _)
+            | ParserError::UnexpectedComma(_, _)
+            | ParserError::UnexpectedMathOp(_, _) => {
                 write!(f, "{}", self.construct_error())
             }
         }
@@ -139,15 +158,26 @@ impl fmt::Display for ParserError {
 impl FancyError for ParserError {
     fn error_ctx(&self) -> (&Vec<char>, Span) {
         match self {
-            ParserError::UnexpectedComma(input, span)
-            | ParserError::UnexpectedMathOp(input, span)
+            ParserError::EmptyParen(input, span)
+            | ParserError::IncompleteInt(input, span)
+            | ParserError::IncompleteMathExpr(input, span)
             | ParserError::InvalidInt(input, span)
-            | ParserError::IncompleteInt(input, span) => (input, *span),
+            | ParserError::InvalidMathOp(input, span)
+            | ParserError::InvalidMathExpr(input, span)
+            | ParserError::UnmatchedParen(input, span)
+            | ParserError::UnexpectedComma(input, span)
+            | ParserError::UnexpectedMathOp(input, span) => (input, *span),
         }
     }
     fn error_msg(&self) -> String {
         let blue = BLUE.on_default() | Effects::BOLD;
         match self {
+            ParserError::EmptyParen(_, span) => {
+                format!(
+                    "{blue}@ position {}-{}{blue:#} - Empty parenthesis",
+                    span.start, span.end
+                )
+            }
             ParserError::UnexpectedComma(_, span) => {
                 format!("{blue}@ position {}{blue:#} - Unexpected comma", span.start)
             }
@@ -158,6 +188,12 @@ impl FancyError for ParserError {
                     input[span.start - 1]
                 )
             }
+            ParserError::UnmatchedParen(_, span) => {
+                format!(
+                    "{blue}@ position {}{blue:#} - Unmatched parenthesis in math expression",
+                    span.start
+                )
+            }
             ParserError::IncompleteInt(input, span) => {
                 format!(
                     "{blue}@ position {}{blue:#} - Expected a number after the math operator '{}'",
@@ -165,9 +201,28 @@ impl FancyError for ParserError {
                     input[span.start - 1]
                 )
             }
+            ParserError::IncompleteMathExpr(_, span) => {
+                format!(
+                    "{blue}@ position {}{blue:#} - Incomplete math expression",
+                    span.start
+                )
+            }
+            ParserError::InvalidMathExpr(_, span) => {
+                format!(
+                    "{blue}@ position {}-{}{blue:#} - Invalid math expression",
+                    span.start, span.end
+                )
+            }
             ParserError::InvalidInt(input, span) => {
                 format!(
                     "{blue}@ position {}{blue:#} - Expected a number, found '{}'",
+                    span.start,
+                    input[span.start - 1]
+                )
+            }
+            ParserError::InvalidMathOp(input, span) => {
+                format!(
+                    "{blue}@ position {}{blue:#} - Expected a math operator, found '{}'",
                     span.start,
                     input[span.start - 1]
                 )
