@@ -1,4 +1,4 @@
-use std::{iter::Peekable, str::Chars};
+use std::{iter::Peekable, num::IntErrorKind, str::Chars};
 
 use crate::{
     errors::LexicalError,
@@ -36,20 +36,11 @@ impl<'a> Lexer<'a> {
     pub fn lex(&mut self) -> LexResult {
         let mut tokens = vec![];
 
-        // tokens.push(Token::new(
-        //     TokenKind::START,
-        //     Span::new(self.position, self.position),
-        // ));
-
         while let Some(ch) = self.input.peek() {
             self.ch = *ch;
 
             match *ch {
                 ' ' => {
-                    // tokens.push(Token::new(
-                    //     TokenKind::Space,
-                    //     Span::new(self.position, self.position),
-                    // ));
                     self.advance();
                 }
                 ',' => {
@@ -92,6 +83,7 @@ impl<'a> Lexer<'a> {
                     let paren = self.tokenize_parenteses();
                     tokens.push(paren);
                 }
+                '\0' => break,
                 _ => {
                     return Err(LexicalError::InvalidToken(
                         self.input_chars.clone(),
@@ -100,11 +92,6 @@ impl<'a> Lexer<'a> {
                 }
             }
         }
-
-        // tokens.push(Token::new(
-        //     TokenKind::END,
-        //     Span::new(self.position, self.position),
-        // ));
 
         Ok(tokens)
     }
@@ -216,25 +203,27 @@ impl<'a> Lexer<'a> {
 
     fn tokenize_numbers(&mut self) -> TokenResult {
         let mut number = String::new();
-        // let mut str_val = String::new();
         let start_pos = self.position;
 
         while let Some(ch @ ('0'..='9' | '_')) = self.input.peek() {
             if *ch != '_' {
                 number.push(*ch);
             }
-            // str_val.push(*ch);
             self.advance();
         }
 
-        match number.parse::<u32>() {
+        match number.parse::<i64>() {
             Ok(val) => Ok(Token::new(
-                TokenKind::Int { val },
+                TokenKind::Int { value: val },
+                Span::new(start_pos, self.position - 1),
+            )),
+            Err(e) if e.kind() == &IntErrorKind::PosOverflow => Err(LexicalError::NumberTooLarge(
+                self.input_chars.clone(),
                 Span::new(start_pos, self.position - 1),
             )),
             Err(_) => Err(LexicalError::MalformedNumber(
                 self.input_chars.clone(),
-                Span::new(start_pos, self.position),
+                Span::new(start_pos, self.position - 1),
             )),
         }
     }

@@ -13,15 +13,8 @@ fn test_numbers() {
     assert_eq!(
         tokens,
         vec![
-            // Token {
-            //     kind: TokenKind::START,
-            //     span: Span { start: 1, end: 1 }
-            // },
             Token {
-                kind: TokenKind::Int {
-                    // str_val: "1".to_string(),
-                    val: 1
-                },
+                kind: TokenKind::Int { value: 1 },
                 span: Span { start: 1, end: 1 }
             },
             Token {
@@ -29,10 +22,7 @@ fn test_numbers() {
                 span: Span { start: 2, end: 2 }
             },
             Token {
-                kind: TokenKind::Int {
-                    // str_val: "2".to_string(),
-                    val: 2
-                },
+                kind: TokenKind::Int { value: 2 },
                 span: Span { start: 3, end: 3 }
             },
             Token {
@@ -40,18 +30,23 @@ fn test_numbers() {
                 span: Span { start: 4, end: 4 }
             },
             Token {
-                kind: TokenKind::Int {
-                    // str_val: "3".to_string(),
-                    val: 3
-                },
+                kind: TokenKind::Int { value: 3 },
                 span: Span { start: 5, end: 5 }
             },
-            // Token {
-            //     kind: TokenKind::END,
-            //     span: Span { start: 6, end: 6 }
-            // },
         ]
     );
+}
+
+#[test]
+fn test_number_too_large() {
+    let mut lexer = Lexer::new("1, 2, 9_223_372_036_854_775_808");
+    let tokens = lexer.lex();
+    if let Err(LexicalError::NumberTooLarge(_, span)) = tokens {
+        println!("{}", tokens.err().unwrap());
+        assert_eq!(span, Span { start: 7, end: 31 });
+    } else {
+        panic!("Expected NumberTooLarge error");
+    }
 }
 
 #[test]
@@ -73,19 +68,12 @@ fn test_range() {
     assert_eq!(
         tokens,
         vec![
-            // Token {
-            //     kind: TokenKind::START,
-            //     span: Span { start: 1, end: 1 }
-            // },
             Token {
                 kind: TokenKind::LSquiggly,
                 span: Span { start: 1, end: 1 }
             },
             Token {
-                kind: TokenKind::Int {
-                    // str_val: "1".to_string(),
-                    val: 1
-                },
+                kind: TokenKind::Int { value: 1 },
                 span: Span { start: 2, end: 2 }
             },
             Token {
@@ -93,20 +81,13 @@ fn test_range() {
                 span: Span { start: 3, end: 4 }
             },
             Token {
-                kind: TokenKind::Int {
-                    // str_val: "5".to_string(),
-                    val: 5
-                },
+                kind: TokenKind::Int { value: 5 },
                 span: Span { start: 5, end: 5 }
             },
             Token {
                 kind: TokenKind::RSquiggly,
                 span: Span { start: 6, end: 6 }
             },
-            // Token {
-            //     kind: TokenKind::END,
-            //     span: Span { start: 7, end: 7 }
-            // },
         ]
     );
 
@@ -115,19 +96,12 @@ fn test_range() {
     assert_eq!(
         tokens,
         vec![
-            // Token {
-            //     kind: TokenKind::START,
-            //     span: Span { start: 1, end: 1 }
-            // },
             Token {
                 kind: TokenKind::LSquiggly,
                 span: Span { start: 1, end: 1 }
             },
             Token {
-                kind: TokenKind::Int {
-                    // str_val: "1".to_string(),
-                    val: 1
-                },
+                kind: TokenKind::Int { value: 1 },
                 span: Span { start: 2, end: 2 }
             },
             Token {
@@ -135,20 +109,13 @@ fn test_range() {
                 span: Span { start: 3, end: 5 }
             },
             Token {
-                kind: TokenKind::Int {
-                    // str_val: "5".to_string(),
-                    val: 5
-                },
+                kind: TokenKind::Int { value: 5 },
                 span: Span { start: 6, end: 6 }
             },
             Token {
                 kind: TokenKind::RSquiggly,
                 span: Span { start: 7, end: 7 }
             },
-            // Token {
-            //     kind: TokenKind::END,
-            //     span: Span { start: 8, end: 8 }
-            // },
         ]
     );
 }
@@ -190,10 +157,6 @@ fn test_range_arg() {
     assert_eq!(
         tokens,
         vec![
-            // Token {
-            //     kind: TokenKind::START,
-            //     span: Span { start: 1, end: 1 }
-            // },
             Token {
                 kind: TokenKind::LSquiggly,
                 span: Span { start: 1, end: 1 }
@@ -203,10 +166,7 @@ fn test_range_arg() {
                 span: Span { start: 2, end: 3 }
             },
             Token {
-                kind: TokenKind::Int {
-                    // str_val: "1".to_string(),
-                    val: 1
-                },
+                kind: TokenKind::Int { value: 1 },
                 span: Span { start: 4, end: 4 }
             },
             Token {
@@ -222,20 +182,13 @@ fn test_range_arg() {
                 span: Span { start: 8, end: 8 }
             },
             Token {
-                kind: TokenKind::Int {
-                    // str_val: "20_000_000".to_string(),
-                    val: 20000000
-                },
+                kind: TokenKind::Int { value: 20000000 },
                 span: Span { start: 9, end: 18 }
             },
             Token {
                 kind: TokenKind::RSquiggly,
                 span: Span { start: 19, end: 19 }
             },
-            // Token {
-            //     kind: TokenKind::END,
-            //     span: Span { start: 20, end: 20 }
-            // },
         ]
     );
 }
