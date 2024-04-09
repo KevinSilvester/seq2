@@ -12,10 +12,9 @@ pub enum Node {
         value: i64,
     },
     MathExpr {
+        negated: bool,
         span: Span,
-        left: Box<Node>,
-        right: Box<Node>,
-        op: Op,
+        rpn: Vec<Token>,
     },
     RangeExpr {
         span: Span,
@@ -86,6 +85,32 @@ impl<'a> Parser<'a> {
             Some(token) => **token,
             None => return Ok(()),
         };
+
+        Ok(())
+    }
+
+    fn check_unmatched_paren(&self) -> Result<(), ParserError> {
+        let mut stack = vec![];
+
+        for token in self.tokens.clone() {
+            match token.kind {
+                TokenKind::LParen => stack.push(token.span),
+                TokenKind::RParen => {
+                    if stack.pop().is_none() {
+                        return Err(ParserError::UnmatchedParen(
+                            self.input_chars.clone(),
+                            token.span,
+                        ));
+                    }
+                }
+                TokenKind::Math(_) | TokenKind::Int { .. } => {}
+                _ => break,
+            }
+        }
+
+        if let Some(span) = stack.pop() {
+            return Err(ParserError::UnmatchedParen(self.input_chars.clone(), span));
+        }
 
         Ok(())
     }
@@ -172,15 +197,15 @@ impl<'a> Parser<'a> {
         };
 
         match self.current_token.kind {
-            TokenKind::Int { val } => {
+            TokenKind::Int { value: val } => {
                 let int_node = match is_negative {
                     true => Node::Int {
                         span: Span::new(span_start, self.current_token.span.end),
-                        value: -(val as i64),
+                        value: -val,
                     },
                     false => Node::Int {
                         span: Span::new(span_start, self.current_token.span.end),
-                        value: val as i64,
+                        value: val,
                     },
                 };
                 self.advance_past_comma()?;
@@ -193,8 +218,141 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // TODO: Switch to use shunting yard algorithm
     fn parse_math_expr(&mut self) -> Result<Node, ParserError> {
+        self.check_unmatched_paren()?;
+        self.in_paren = true;
+
+        let span_start = self.current_token.span.start;
+        let mut start_of_expr = true;
+        let mut paren_depth = 0;
+        let mut ouput_queue = vec![];
+        let mut operator_stack = vec![];
+
+        // Advance the cursor
+        self.advance();
+
+        // while let Some(token) = self.tokens.peek() {
+        //     self.current_token = **token;
+
+        //     match token.kind {
+        //         TokenKind::LParen => {
+        //             self.advance();
+        //             paren_depth += 1;
+        //             if paren_depth > 1 {
+        //                 operator_stack.push(self.current_token);
+        //                 start_of_expr = true;
+        //             }
+        //         }
+
+        //         // Singular negative/positive numbers at the start of the expression/parenthesis
+        //         TokenKind::Math(op) if start_of_expr => match op {
+        //             Op::Add | Op::Sub => {
+        //                 let int_token = match self.parser_int()? {
+        //                     Node::Int { value, .. } => TokenKind::Int { value },
+        //                     _ => unreachable!(),
+        //                 };
+        //                 ouput_queue.push(int_token);
+        //             }
+        //             _ => {
+        //                 return Err(ParserError::UnexpectedMathOp(
+        //                     self.input_chars.clone(),
+        //                     self.current_token.span,
+        //                 ))
+        //             }
+        //         },
+
+        //         TokenKind::Math(_) if !start_of_expr => {
+        //             operator_stack.push(self.current_token);
+        //         }
+        //         _ => {
+        //             let node = self.parse_t()?;
+        //         }
+
+        //         TokenKind::RParen => {
+        //             self.advance();
+        //             paren_depth -= 1;
+        //         }
+        //     }
+
+        //     start_of_expr = false;
+        // }
+
+        self.recursive_shunt(span_start, &mut ouput_queue, &mut operator_stack)?;
+
+        todo!("Implement shunting yard algorithm")
+    }
+
+    // A recursive infix to postfix translator based on shunting yard algorithm
+    fn recursive_shunt(
+        &mut self,
+        start: usize,
+        ouput_queue: &mut Vec<Token>,
+        operator_stack: &mut Vec<Token>,
+    ) -> Result<(), ParserError> {
         self.paren_depth += 1;
-        todo!()
+        self.advance();
+        let mut token_count = 0;
+        let mut start_of_expr = true;
+
+        while let Some(token) = self.tokens.peek() {
+            self.current_token = **token;
+
+            match self.current_token.kind {
+                // End of math expression
+                TokenKind::RParen => {
+                    self.advance();
+                    self.paren_depth -= 1;
+                    if self.paren_depth > 0 {
+                        todo!("Pop the opertator stack")
+                    }
+                    break;
+                }
+
+                // Nested math expression
+                TokenKind::LParen => self.recursive_shunt(start, ouput_queue, operator_stack)?,
+
+                // Numbers
+                TokenKind::Int { .. } => {}
+
+                // Singular negative/positive numbers at the start of the expression/parenthesis
+                TokenKind::Math(op) if start_of_expr => match op {
+                    Op::Add | Op::Sub => {
+                        let int_token = match self.parser_int()? {
+                            Node::Int { value, span } => Token::new(TokenKind::Int { value }, span),
+                            _ => unreachable!(),
+                        };
+                        ouput_queue.push(int_token);
+                    }
+                    _ => {
+                        return Err(ParserError::UnexpectedMathOp(
+                            self.input_chars.clone(),
+                            self.current_token.span,
+                        ))
+                    }
+                },
+
+                // Math operators + negated numbers/nested math expression
+                TokenKind::Math(op) => {}
+
+                // Any other token is invalid syntax
+                _ => {
+                    return Err(ParserError::IncompleteMathExpr(
+                        self.input_chars.clone(),
+                        Span::new(start, token.span.end),
+                    ))
+                }
+            }
+            start_of_expr = false;
+        }
+
+        if token_count == 0 {
+            return Err(ParserError::EmptyParen(
+                self.input_chars.clone(),
+                Span::new(start, self.current_token.span.end + 1),
+            ));
+        }
+
+        Ok(())
     }
 }

@@ -81,18 +81,18 @@ fn test_incomplete_number() {
 
 #[test]
 fn test_invalid_number() {
-    let input = "1, 10, -,3";
+    let input = "1, 10, (-+-),3";
     let tokens = Lexer::new(input).lex().unwrap();
     let mut parser = Parser::new(input.chars().collect(), &tokens);
     let nodes = parser.parse();
     if let Err(ParserError::InvalidInt(_, span)) = nodes {
         println!("{}", nodes.err().unwrap());
-        assert_eq!(span.start, 9);
+        assert_eq!(span.start, 12);
     } else {
         dbg!(&nodes);
         panic!();
     }
-    
+
     let input = "1, -+%, 10, 3";
     let tokens = Lexer::new(input).lex().unwrap();
     let mut parser = Parser::new(input.chars().collect(), &tokens);
@@ -133,4 +133,73 @@ fn test_neg_pos_int() {
             value: -10
         }]
     );
+}
+
+#[test]
+fn test_unmatched_paren() {
+    let input = "1, (10 + 3) + (5 * 3))) , 3";
+    let tokens = Lexer::new(input).lex().unwrap();
+    let mut parser = Parser::new(input.chars().collect(), &tokens);
+    let nodes = parser.parse();
+    if let Err(ParserError::UnmatchedParen(_, span)) = nodes {
+        println!("{}", nodes.err().unwrap());
+        assert_eq!(span.start, 22);
+    } else {
+        panic!();
+    }
+
+    let input = "1, (";
+    let tokens = Lexer::new(input).lex().unwrap();
+    let mut parser = Parser::new(input.chars().collect(), &tokens);
+    let nodes = parser.parse();
+    if let Err(ParserError::UnmatchedParen(_, span)) = nodes {
+        println!("{}", nodes.err().unwrap());
+        assert_eq!(span.start, 4);
+    } else {
+        panic!();
+    }
+}
+
+// #[test]
+// fn test_math_expr() {
+//     let input = "(1 - 5), ((10 + 3) + (5 * 3)) , 3";
+//     let tokens = Lexer::new(input).lex().unwrap();
+//     let mut parser = Parser::new(input.chars().collect(), &tokens);
+//     let nodes = parser.parse();
+
+//     if let Ok(nodes) = nodes {
+//         assert_eq!(
+//             nodes,
+//             vec![
+//                 Node::Int {
+//                     span: Span::new(0, 7),
+//                     value: -4
+//                 },
+//                 Node::Int {
+//                     span: Span::new(9, 26),
+//                     value: 28
+//                 },
+//                 Node::Int {
+//                     span: Span::new(28, 29),
+//                     value: 3
+//                 }
+//             ]
+//         );
+//     } else {
+//         println!("{}", nodes.err().unwrap());
+//     }
+// }
+
+#[test]
+fn test_empty_maths_expr() {
+    let input = "1, 2, -3, ()";
+    let tokens = Lexer::new(input).lex().unwrap();
+    let mut parser = Parser::new(input.chars().collect(), &tokens);
+    let nodes = parser.parse();
+    if let Err(ParserError::EmptyParen(_, span)) = nodes {
+        println!("{}", nodes.err().unwrap());
+        assert_eq!(span.start, 11);
+    } else {
+        panic!();
+    }
 }
