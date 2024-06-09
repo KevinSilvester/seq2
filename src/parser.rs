@@ -5,6 +5,24 @@ use crate::{
     tokens::{Op, Span, Token, TokenKind},
 };
 
+/// NOICE!
+/// ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠁⠀⠀⠀⠀⠠⠤⠶⠞⢻⣿⡿⣿⣿⣿⣿⣿⣿
+/// ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠁⠀⢀⣠⣤⣤⣴⣶⣄⠀⢸⣿⠇⠻⣿⣿⣿⣿⣿
+/// ⣿⣿⣿⣿⣿⣿⣿⣿⣿⠋⠀⠀⠰⠛⠛⠛⠻⠿⠿⣿⡇⠈⠉⠀⠀⠈⠻⣿⣿⣿
+/// ⣿⣿⣿⣿⣿⣿⣿⣿⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣤⣄⡀⢹⣿
+/// ⣿⣿⣿⣿⣿⣿⢿⢏⡜⢱⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠾⢿⣿⠻⣿⣿⣿
+/// ⣿⣿⣿⣿⣿⡿⢸⡞⣠⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠛⠀⠀⠹⡍
+/// ⣉⠙⠻⣿⣹⡇⡞⢰⡟⠀⣠⠤⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹
+/// ⠈⡹⣶⢆⣿⢱⡇⢸⡷⠋⣠⣤⡈⢇⠀⠀⠀⠀⠀⠀⠀⢀⡤⠄⢠⡀⠀⠀⠀⠈
+/// ⠀⣇⣿⢸⣿⠸⣷⠀⢧⣾⠋⠈⠻⣾⣦⠀⠀⠀⠀⠀⣴⠋⢀⣦⠀⢿⠀⠀⠀⢀
+/// ⡀⠈⣿⠘⢿⠄⠈⢀⠸⡏⠀⠀⢰⡇⡜⠀⠀⠀⠀⠀⠁⠀⠈⢸⠈⠀⠀⠀⠀⡼
+/// ⣿⣷⣿⠀⠀⠀⠀⡌⠀⢧⣀⡴⠛⢁⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⡇
+/// ⣿⣿⣿⡇⠀⠀⠰⢰⠀⠀⠙⠃⢀⡾⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⣿⡇
+/// ⣿⣿⣿⣷⠀⠀⠀⡸⠀⠀⠀⣠⣿⣿⣶⣤⣤⣀⡀⠀⠀⠀⠀⢀⣴⣿⣿⣿⣿⡇
+/// ⣿⣿⣿⠏⠀⠀⢀⡇⢀⣠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣶⡞⠋⢸⣿⣿⣿⣿⡇
+/// ⣿⡿⠃⠀⠐⠶⣿⡿⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣞⢻⣿⣿⣿⣿⡇
+pub const MAX_PAREN_DEPTH: usize = 69;
+
 #[derive(Debug, PartialEq)]
 pub enum Node {
     Int {
@@ -278,13 +296,13 @@ impl<'a> Parser<'a> {
         //     start_of_expr = false;
         // }
 
-        self.recursive_shunt(span_start, &mut ouput_queue, &mut operator_stack)?;
+        self.infix_to_postfix(span_start, &mut ouput_queue, &mut operator_stack)?;
 
         todo!("Implement shunting yard algorithm")
     }
 
     // A recursive infix to postfix translator based on shunting yard algorithm
-    fn recursive_shunt(
+    fn infix_to_postfix(
         &mut self,
         start: usize,
         ouput_queue: &mut Vec<Token>,
@@ -292,8 +310,15 @@ impl<'a> Parser<'a> {
     ) -> Result<(), ParserError> {
         self.paren_depth += 1;
         self.advance();
-        let mut token_count = 0;
-        let mut start_of_expr = true;
+        let mut token_count = 0; // keeps track of tokens in parenthesis
+        let mut is_start = true; // whether position of the cursor is at the start of a new number of nested maths epxr. (For parsing unary operators)
+
+        if self.paren_depth > MAX_PAREN_DEPTH {
+            return Err(ParserError::TooManyParen(
+                self.input_chars.clone(),
+                Span::new(start, self.current_token.span.end),
+            ));
+        }
 
         while let Some(token) = self.tokens.peek() {
             self.current_token = **token;
@@ -310,13 +335,13 @@ impl<'a> Parser<'a> {
                 }
 
                 // Nested math expression
-                TokenKind::LParen => self.recursive_shunt(start, ouput_queue, operator_stack)?,
+                TokenKind::LParen => self.infix_to_postfix(start, ouput_queue, operator_stack)?,
 
                 // Numbers
                 TokenKind::Int { .. } => {}
 
                 // Singular negative/positive numbers at the start of the expression/parenthesis
-                TokenKind::Math(op) if start_of_expr => match op {
+                TokenKind::Math(op) if is_start => match op {
                     Op::Add | Op::Sub => {
                         let int_token = match self.parser_int()? {
                             Node::Int { value, span } => Token::new(TokenKind::Int { value }, span),
@@ -343,7 +368,7 @@ impl<'a> Parser<'a> {
                     ))
                 }
             }
-            start_of_expr = false;
+            is_start = false;
         }
 
         if token_count == 0 {

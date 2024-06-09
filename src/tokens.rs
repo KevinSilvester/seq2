@@ -13,12 +13,22 @@ pub enum Op {
 }
 
 impl Op {
+    pub const LEFT_ASSOC: u8 = 0;
+    pub const RIGHT_ASSOC: u8 = 1;
+
     pub fn precedence(&self) -> u8 {
         match self {
             Op::Add | Op::Sub => 1,
             Op::Mul | Op::Div | Op::Mod => 2,
             Op::Pow => 3,
             Op::UnaryAdd | Op::UnarySub => 4,
+        }
+    }
+
+    pub fn associativity(&self) -> u8 {
+        match self {
+            Op::Add | Op::Sub | Op::Mul | Op::Div | Op::Mod | Op::Pow => Self::LEFT_ASSOC,
+            Op::UnaryAdd | Op::UnarySub => Self::RIGHT_ASSOC,
         }
     }
 }

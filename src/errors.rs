@@ -132,6 +132,7 @@ pub enum ParserError {
     InvalidInt(Vec<char>, Span),
     InvalidMathOp(Vec<char>, Span),
     InvalidMathExpr(Vec<char>, Span),
+    TooManyParen(Vec<char>, Span),
     UnmatchedParen(Vec<char>, Span),
     UnexpectedComma(Vec<char>, Span),
     UnexpectedMathOp(Vec<char>, Span),
@@ -146,6 +147,7 @@ impl fmt::Display for ParserError {
             | ParserError::InvalidInt(_, _)
             | ParserError::InvalidMathOp(_, _)
             | ParserError::InvalidMathExpr(_, _)
+            | ParserError::TooManyParen(_, _)
             | ParserError::UnmatchedParen(_, _)
             | ParserError::UnexpectedComma(_, _)
             | ParserError::UnexpectedMathOp(_, _) => {
@@ -164,6 +166,7 @@ impl FancyError for ParserError {
             | ParserError::InvalidInt(input, span)
             | ParserError::InvalidMathOp(input, span)
             | ParserError::InvalidMathExpr(input, span)
+            | ParserError::TooManyParen(input, span)
             | ParserError::UnmatchedParen(input, span)
             | ParserError::UnexpectedComma(input, span)
             | ParserError::UnexpectedMathOp(input, span) => (input, *span),
@@ -215,8 +218,9 @@ impl FancyError for ParserError {
             }
             ParserError::InvalidInt(input, span) => {
                 format!(
-                    "{blue}@ position {}{blue:#} - Expected a number, found '{}'",
+                    "{blue}@ position {}{blue:#} - Expected a number after the math operator '{}', found '{}'",
                     span.start,
+                    input[span.start - 2],
                     input[span.start - 1]
                 )
             }
@@ -225,6 +229,12 @@ impl FancyError for ParserError {
                     "{blue}@ position {}{blue:#} - Expected a math operator, found '{}'",
                     span.start,
                     input[span.start - 1]
+                )
+            }
+            ParserError::TooManyParen(_, span) => {
+                format!(
+                    "{blue}@ position {}-{}{blue:#} - WE'RE IN TOO DEEP!!! Too many parenthesis!",
+                    span.start, span.end
                 )
             }
         }

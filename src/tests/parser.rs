@@ -3,7 +3,7 @@ use pretty_assertions::assert_eq;
 use crate::{
     errors::ParserError,
     lexer::Lexer,
-    parser::{Node, Parser},
+    parser::{Node, Parser, MAX_PAREN_DEPTH},
     tokens::Span,
 };
 
@@ -71,6 +71,7 @@ fn test_incomplete_number() {
     let mut parser = Parser::new(input.chars().collect(), &tokens);
     let nodes = parser.parse();
     if let Err(ParserError::IncompleteInt(_, span)) = nodes {
+        dbg!(u16::MAX);
         println!("{}", nodes.err().unwrap());
         assert_eq!(span.start, 8);
     } else {
@@ -199,6 +200,24 @@ fn test_empty_maths_expr() {
     if let Err(ParserError::EmptyParen(_, span)) = nodes {
         println!("{}", nodes.err().unwrap());
         assert_eq!(span.start, 11);
+    } else {
+        panic!();
+    }
+}
+
+#[test]
+fn test_too_many_parenthesis() {
+    let input = format!(
+        "{}4+4{}, 5",
+        vec!["("; MAX_PAREN_DEPTH + 2].join(""),
+        vec![")"; MAX_PAREN_DEPTH + 2].join("")
+    );
+    let tokens = Lexer::new(&input).lex().unwrap();
+    let mut parser = Parser::new(input.chars().collect(), &tokens);
+    let nodes = parser.parse();
+    if let Err(ParserError::TooManyParen(_, span)) = nodes {
+        println!("{}", nodes.err().unwrap());
+        assert_eq!(span.start, 1);
     } else {
         panic!();
     }
